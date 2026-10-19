@@ -101,6 +101,11 @@ sudo zypper install dispctrl-linux
 ```
 
 The signing key's fingerprint is `392A 1EEB 594E C9FB 0300 BC66 A1AE 3F54 9366 D3D9`.
+[packages.akileswar.com/dispctrl-linux](https://packages.akileswar.com/dispctrl-linux/)
+has the same commands and the version it serves. The site serves the signed
+metadata and sends each package download to the file on this project's
+[releases](https://github.com/HaythmKenway/DispCtrl-linux/releases); apt and
+dnf check what arrives against the signed metadata.
 
 The .deb and .rpm pull in what they need. Start the engine once after
 installing them; it starts by itself at every login after:

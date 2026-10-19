@@ -13,8 +13,11 @@ concurrency:
   cancel-in-progress: true
 jobs:
   deploy:
-    # The original repository's website. Here Pages serves the Linux package
-    # repositories (linux-repos.yml), which this would replace.
+    # The original repository's website, not this fork's. This fork's Pages
+    # site used to be packages.akileswar.com; the package repositories now
+    # live on the Akileswar site, which collects the tarball linux-repos.yml
+    # attaches to each release. Once packages.akileswar.com points there,
+    # remove it as this repository's Pages custom domain.
     if: github.repository == 'jesvijonathan/DispCtrl'
     runs-on: ubuntu-latest
     timeout-minutes: 10

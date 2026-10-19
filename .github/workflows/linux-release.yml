@@ -235,5 +235,6 @@ jobs:
         if: inputs.publish
         run: |
           gh release edit "v$VERSION" --draft=false --latest --repo "$GITHUB_REPOSITORY"
-          # The apt and dnf repositories serve the new release from now on.
+          # The apt and dnf repositories: signs the RPMs and attaches the
+          # metadata, which packages.akileswar.com then collects and serves.
           gh workflow run linux-repos.yml --repo "$GITHUB_REPOSITORY" --ref "$GITHUB_REF_NAME" -f tag="v$VERSION"

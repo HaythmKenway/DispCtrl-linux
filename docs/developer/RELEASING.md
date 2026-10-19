@@ -14,6 +14,7 @@
 | `dispctrl-linux-<v>-linux-x64.tar.gz`, `-linux-arm64`, `-linux-musl-x64` | the same | any other distribution, Alpine (musl); `install.sh` inside |
 | `dispctrl-linux_<v>_amd64.snap`, `_arm64.snap` | `build/packaging/linux/snap/pack.sh --docker` | the Snap Store (strict, no DDC/CI) |
 | `dispctrl-linux-<v>-SHA256SUMS.txt` | `package.sh` | the Linux packages |
+| `dispctrl-linux-repo.tar.gz` | the **Linux package repositories** workflow (`linux-repos.yml`), which also signs the release's RPMs in place and rewrites the checksums | packages.akileswar.com: the signed apt and dnf metadata, without the packages, which the site redirects to on the release |
 
 Every one of them lands in a single folder, `artifacts/<channel>-<version>/`,
 beside the `cli` and `desktop` folders they were made from. Publish replaces
@@ -218,6 +219,8 @@ no secrets, and the Device library workflow's token cannot change files under
 | variable | `WINGET_PACKAGE_ID` | `JesviJonathan.DispCtrl`; enables the winget job |
 | secret | `WINGET_TOKEN` | a classic token with `public_repo`, for the winget-pkgs fork and pull request |
 | environment | `microsoft-store` | add required reviewers |
+| secret | `LINUX_REPO_GPG_KEY`, `LINUX_REPO_GPG_FINGERPRINT` | the apt and dnf signing key (armoured private key) and its fingerprint; the public half is `build/packaging/linux/repo/dispctrl-linux.asc`, and the workflow stops if the two differ |
+| secret | `PACKAGES_DISPATCH_TOKEN` | optional: a fine-grained token that may dispatch to `HaythmKenway/Akileswar` (Contents: read and write), so packages.akileswar.com collects a new release at once instead of within half an hour |
 | secret | `SNAPCRAFT_STORE_CREDENTIALS` | `snapcraft export-login --snaps=dispctrl-linux --acls package_access,package_push,package_update,package_release -`, after `snapcraft register dispctrl-linux` once; enables uploading a published release's snaps (stable to stable, beta to beta, test to edge) |
 
 Before the first Store submission:
