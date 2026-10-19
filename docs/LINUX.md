@@ -87,16 +87,16 @@ DispCtrl updates with the rest of the system.
 
 ```bash
 # Debian, Ubuntu, Mint, Pop!_OS
-curl -fsSL https://haythmkenway.github.io/DispCtrl-linux/dispctrl-linux.gpg | sudo tee /usr/share/keyrings/dispctrl-linux.gpg >/dev/null
-echo "deb [signed-by=/usr/share/keyrings/dispctrl-linux.gpg] https://haythmkenway.github.io/DispCtrl-linux/apt stable main" | sudo tee /etc/apt/sources.list.d/dispctrl-linux.list
+curl -fsSL https://akileswar.com/dispctrl/dispctrl-linux.gpg | sudo tee /usr/share/keyrings/dispctrl-linux.gpg >/dev/null
+echo "deb [signed-by=/usr/share/keyrings/dispctrl-linux.gpg] https://akileswar.com/dispctrl/apt stable main" | sudo tee /etc/apt/sources.list.d/dispctrl-linux.list
 sudo apt update && sudo apt install dispctrl-linux
 
 # Fedora, RHEL, Rocky, Alma
-sudo curl -fsSL https://haythmkenway.github.io/DispCtrl-linux/rpm/dispctrl-linux.repo -o /etc/yum.repos.d/dispctrl-linux.repo
+sudo curl -fsSL https://akileswar.com/dispctrl/rpm/dispctrl-linux.repo -o /etc/yum.repos.d/dispctrl-linux.repo
 sudo dnf install dispctrl-linux
 
 # openSUSE
-sudo zypper addrepo https://haythmkenway.github.io/DispCtrl-linux/rpm/dispctrl-linux.repo
+sudo zypper addrepo https://akileswar.com/dispctrl/rpm/dispctrl-linux.repo
 sudo zypper install dispctrl-linux
 ```
 
