@@ -100,7 +100,7 @@ sudo zypper addrepo https://packages.akileswar.com/rpm/dispctrl-linux.repo
 sudo zypper install dispctrl-linux
 ```
 
-The signing key's fingerprint is `392A 1EEB 594E C9FB 0300 BC66 A1AE 3F54 9366 D3D9`.
+The signing key's fingerprint is `FB5B E1AC 6C71 ABFC FC0D 0447 70E8 F24E 37F2 D8CC`.
 [packages.akileswar.com/dispctrl-linux](https://packages.akileswar.com/dispctrl-linux/)
 has the same commands and the version it serves. The site serves the signed
 metadata and sends each package download to the file on this project's
