@@ -220,7 +220,7 @@ no secrets, and the Device library workflow's token cannot change files under
 | secret | `WINGET_TOKEN` | a classic token with `public_repo`, for the winget-pkgs fork and pull request |
 | environment | `microsoft-store` | add required reviewers |
 | secret | `LINUX_REPO_GPG_KEY`, `LINUX_REPO_GPG_FINGERPRINT` | the apt and dnf signing key (armoured private key) and its fingerprint; the public half is `build/packaging/linux/repo/dispctrl-linux.asc`, and the workflow stops if the two differ |
-| secret | `PACKAGES_DISPATCH_TOKEN` | optional: a fine-grained token that may dispatch to `HaythmKenway/Akileswar` (Contents: read and write), so packages.akileswar.com collects a new release at once instead of within half an hour |
+| secret | `PACKAGES_DISPATCH_TOKEN` | optional: a fine-grained token that may dispatch to `HaythmKenway/packages` (Contents: read and write), so packages.akileswar.com collects a new release at once instead of within half an hour |
 | secret | `SNAPCRAFT_STORE_CREDENTIALS` | `snapcraft export-login --snaps=dispctrl-linux --acls package_access,package_push,package_update,package_release -`, after `snapcraft register dispctrl-linux` once; enables uploading a published release's snaps (stable to stable, beta to beta, test to edge) |
 
 Before the first Store submission:
