@@ -1,7 +1,7 @@
 name: Linux package repositories
 # The apt and dnf repositories' metadata for a release, attached to that
 # release as dispctrl-linux-repo.tar.gz. The website that serves them is not
-# here: packages.akileswar.com belongs to the Akileswar site (Vercel), which
+# here: packages.akileswar.com is HaythmKenway/packages (Vercel), which
 # collects this tarball from the latest release of every product it serves,
 # serves the metadata and keys, and answers each package download with a
 # redirect to the release asset. Addresses stay as they were:
@@ -160,18 +160,18 @@ jobs:
       - name: Attach the repository to the release
         run: gh release upload "$TAG" dispctrl-linux-repo.tar.gz --clobber --repo "$GITHUB_REPOSITORY"
       - name: Ask the site to collect it
-        # Optional (a token that may dispatch to HaythmKenway/Akileswar); without
+        # Optional (a token that may dispatch to HaythmKenway/packages); without
         # it the site's own schedule collects the release within half an hour.
         if: env.HAS_DISPATCH_TOKEN == 'true'
         env:
           GH_TOKEN: ${{ secrets.PACKAGES_DISPATCH_TOKEN }}
-        run: gh api repos/HaythmKenway/Akileswar/dispatches -f event_type=packages
+        run: gh api repos/HaythmKenway/packages/dispatches -f event_type=packages
       - name: Summary
         run: |
           {
             echo "## Package repositories: $TAG"
             echo
-            echo "Attached dispctrl-linux-repo.tar.gz; packages.akileswar.com serves it once the Akileswar site has collected it."
+            echo "Attached dispctrl-linux-repo.tar.gz; packages.akileswar.com serves it once HaythmKenway/packages has collected it."
             echo
             echo "| Package file | Release asset |"
             echo "|---|---|"

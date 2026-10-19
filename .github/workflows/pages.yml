@@ -15,7 +15,7 @@ jobs:
   deploy:
     # The original repository's website, not this fork's. This fork's Pages
     # site used to be packages.akileswar.com; the package repositories now
-    # live on the Akileswar site, which collects the tarball linux-repos.yml
+    # live in HaythmKenway/packages, which collects the tarball linux-repos.yml
     # attaches to each release. Once packages.akileswar.com points there,
     # remove it as this repository's Pages custom domain.
     if: github.repository == 'jesvijonathan/DispCtrl'
