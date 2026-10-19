@@ -1,12 +1,13 @@
 name: Linux package repositories
 # The apt and dnf repositories on GitHub Pages, from a release's packages:
 #
-#   https://akileswar.com/dispctrl/apt   (Debian, Ubuntu, Mint)
-#   https://akileswar.com/dispctrl/rpm   (Fedora, RHEL, openSUSE)
+#   https://packages.akileswar.com/apt   (Debian, Ubuntu, Mint)
+#   https://packages.akileswar.com/rpm   (Fedora, RHEL, openSUSE)
 #
-# akileswar.com/dispctrl redirects to haythmkenway.github.io/DispCtrl-linux
-# (vercel.json in the Akileswar site), so the published address is ours and
-# the hosting behind it can move without breaking anyone's sources.
+# packages.akileswar.com is this Pages site's custom domain (a CNAME to
+# haythmkenway.github.io), so the published address is ours and the hosting
+# behind it can move without breaking anyone's sources. The old github.io
+# address, and akileswar.com/dispctrl, redirect to it.
 #
 # Signed with the key whose public half is build/packaging/linux/repo/; the
 # private half is the LINUX_REPO_GPG_KEY secret. Started by "Linux release"
@@ -34,7 +35,7 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     env:
-      BASE: https://akileswar.com/dispctrl
+      BASE: https://packages.akileswar.com
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
