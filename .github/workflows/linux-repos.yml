@@ -1,65 +1,106 @@
 name: Linux package repositories
-# The apt and dnf repositories on GitHub Pages, from a release's packages:
+# The apt and dnf repositories' metadata for a release, attached to that
+# release as dispctrl-linux-repo.tar.gz. The website that serves them is not
+# here: packages.akileswar.com belongs to the Akileswar site (Vercel), which
+# collects this tarball from the latest release of every product it serves,
+# serves the metadata and keys, and answers each package download with a
+# redirect to the release asset. Addresses stay as they were:
 #
-#   https://packages.akileswar.com/apt   (Debian, Ubuntu, Mint)
-#   https://packages.akileswar.com/rpm   (Fedora, RHEL, openSUSE)
+#   https://packages.akileswar.com/apt                        (Debian, Ubuntu, Mint)
+#   https://packages.akileswar.com/rpm/dispctrl-linux.repo    (Fedora, RHEL, openSUSE)
+#   https://packages.akileswar.com/dispctrl-linux/            (the install page)
 #
-# packages.akileswar.com is this Pages site's custom domain (a CNAME to
-# haythmkenway.github.io), so the published address is ours and the hosting
-# behind it can move without breaking anyone's sources. The old github.io
-# address, and akileswar.com/dispctrl, redirect to it.
+# The tarball holds manifest.json (product, version, tag, key fingerprint),
+# redirects.tsv (each package file the metadata names, and the release asset
+# that is that file) and the repository tree without the packages.
+#
+# The RPMs are signed here and put back on the release, with the checksums
+# file regenerated, so the files a download is redirected to are the ones the
+# repodata describes. A run for a release whose RPMs are already signed with
+# the repository key changes nothing on it but the tarball.
 #
 # Signed with the key whose public half is build/packaging/linux/repo/; the
 # private half is the LINUX_REPO_GPG_KEY secret. Started by "Linux release"
-# when it publishes, or by hand for any release. Only the release given is
-# served: apt and dnf want the newest, and Pages holds a gigabyte.
+# when it publishes, or by hand for any release (blank: the latest).
 on:
   workflow_dispatch:
     inputs:
       tag:
-        description: Release tag to serve, such as v1.0.0 (blank for the latest)
+        description: Release tag, such as v1.1.0 (blank for the latest)
         required: false
 permissions: {}
 concurrency:
-  group: pages
+  group: linux-repos
   cancel-in-progress: false
 jobs:
   repos:
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
+    timeout-minutes: 30
     permissions:
-      contents: read
-      pages: write
-      id-token: write
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
+      contents: write   # signed RPMs, checksums and the repository tarball on the release
     env:
       BASE: https://packages.akileswar.com
+      GH_TOKEN: ${{ github.token }}
+      HAS_DISPATCH_TOKEN: ${{ secrets.PACKAGES_DISPATCH_TOKEN != '' }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
       - name: Download the release's packages
         env:
-          GH_TOKEN: ${{ github.token }}
           TAG: ${{ inputs.tag }}
         run: |
           tag="${TAG:-$(gh release view --repo "$GITHUB_REPOSITORY" --json tagName --jq .tagName)}"
+          [[ "$tag" =~ ^v[0-9A-Za-z.+~-]+$ ]] || { echo "::error::not a release tag: $tag"; exit 1; }
           echo "TAG=$tag" >> "$GITHUB_ENV"
-          gh release download "$tag" --repo "$GITHUB_REPOSITORY" -p '*.deb' -p '*.rpm' -D pkgs
+          gh release download "$tag" --repo "$GITHUB_REPOSITORY" -p '*.deb' -p '*.rpm' -p '*SHA256SUMS.txt' -D pkgs
           ls -la pkgs
       - name: Tools and the signing key
         env:
           KEY: ${{ secrets.LINUX_REPO_GPG_KEY }}
           FPR: ${{ secrets.LINUX_REPO_GPG_FINGERPRINT }}
         run: |
-          sudo apt-get install -y --no-install-recommends apt-utils createrepo-c rpm gnupg
+          sudo apt-get install -y --no-install-recommends apt-utils createrepo-c rpm gnupg jq
           echo "$KEY" | gpg --batch --import
-          echo "FPR=$(echo "$FPR" | tr -d '[:space:]')" >> "$GITHUB_ENV"
+          fpr=$(echo "$FPR" | tr -d '[:space:]')
+          # The secret must be the key users have: the one published in this repository.
+          pub=$(gpg --batch --show-keys --with-colons build/packaging/linux/repo/dispctrl-linux.asc | awk -F: '$1 == "fpr" { print $10; exit }')
+          [ "$fpr" = "$pub" ] || { echo "::error::LINUX_REPO_GPG_FINGERPRINT is not build/packaging/linux/repo/dispctrl-linux.asc"; exit 1; }
+          echo "FPR=$fpr" >> "$GITHUB_ENV"
+      - name: Sign the RPMs
+        run: |
+          db=$(mktemp -d)
+          rpmkeys --dbpath "$db" --import build/packaging/linux/repo/dispctrl-linux.asc
+          : > signed.txt
+          for rpm in pkgs/*.rpm; do
+            if rpmkeys --dbpath "$db" --checksig "$rpm" | grep -q 'signatures OK'; then
+              echo "$rpm: already signed with the repository key"
+              continue
+            fi
+            # rpm looks for gpg2 by default, which only some images have.
+            rpmsign --define "_gpg_name $FPR" --define "__gpg $(command -v gpg)" --addsign "$rpm"
+            rpmkeys --dbpath "$db" --checksig "$rpm" | grep -q 'signatures OK' \
+              || { echo "::error::$rpm does not verify after signing"; exit 1; }
+            echo "$rpm" >> signed.txt
+          done
+      - name: Put the signed RPMs on the release
+        run: |
+          if [ ! -s signed.txt ]; then echo "The release's RPMs were already signed."; exit 0; fi
+          sums=$(find pkgs -maxdepth 1 -name '*SHA256SUMS.txt' | head -n1)
+          [ -n "$sums" ] || { echo "::error::the release has no SHA256SUMS file"; exit 1; }
+          # Replace the signed files' lines; every other line (snaps, tarballs) stays.
+          while read -r rpm; do
+            name=$(basename "$rpm")
+            hash=$(sha256sum "$rpm" | cut -d' ' -f1)
+            awk -v n="$name" -v h="$hash" '$2 == n { print h "  " n; done = 1; next } { print } END { if (!done) print h "  " n }' "$sums" > "$sums.new"
+            mv "$sums.new" "$sums"
+          done < signed.txt
+          (cd pkgs && sha256sum -c --ignore-missing "$(basename "$sums")")
+          xargs -a signed.txt gh release upload "$TAG" --clobber --repo "$GITHUB_REPOSITORY"
+          gh release upload "$TAG" "$sums" --clobber --repo "$GITHUB_REPOSITORY"
       - name: apt repository
         run: |
-          root=_site/apt
+          root=repo/apt
           for arch in amd64 arm64; do
             mkdir -p "$root/pool/main/$arch" "$root/dists/stable/main/binary-$arch"
             cp pkgs/*_"$arch".deb "$root/pool/main/$arch/"
@@ -73,16 +114,24 @@ jobs:
             release dists/stable > dists/stable/Release)
           gpg --batch --yes --default-key "$FPR" --clearsign -o "$root/dists/stable/InRelease" "$root/dists/stable/Release"
           gpg --batch --yes --default-key "$FPR" -abs -o "$root/dists/stable/Release.gpg" "$root/dists/stable/Release"
+          # The packages stay on the release; the site redirects to them.
+          for deb in "$root"/pool/main/*/*.deb; do
+            printf '%s\t%s\n' "${deb#repo/}" "$(basename "$deb")" >> repo/redirects.tsv
+            rm "$deb"
+          done
       - name: dnf repository
         run: |
-          root=_site/rpm
+          root=repo/rpm
           for arch in x86_64 aarch64; do
             mkdir -p "$root/$arch"
             cp pkgs/*."$arch".rpm "$root/$arch/"
-            # Each package signed, and the metadata: gpgcheck and repo_gpgcheck both on.
-            rpmsign --define "_gpg_name $FPR" --addsign "$root/$arch"/*.rpm
+            # Each package signed (above), and the metadata: gpgcheck and repo_gpgcheck both on.
             createrepo_c "$root/$arch"
             gpg --batch --yes --default-key "$FPR" --detach-sign --armor "$root/$arch/repodata/repomd.xml"
+            for rpm in "$root/$arch"/*.rpm; do
+              printf '%s\t%s\n' "${rpm#repo/}" "$(basename "$rpm")" >> repo/redirects.tsv
+              rm "$rpm"
+            done
           done
           cat > "$root/dispctrl-linux.repo" <<REPO
           [dispctrl-linux]
@@ -94,24 +143,39 @@ jobs:
           gpgkey=$BASE/dispctrl-linux.asc
           REPO
           sed -i 's/^ *//' "$root/dispctrl-linux.repo"
-      - name: Keys and the front page
+      - name: Keys and the manifest
         run: |
-          cp build/packaging/linux/repo/dispctrl-linux.asc build/packaging/linux/repo/dispctrl-linux.gpg _site/
-          # The front page is the install instructions; packages.html stays for old links.
-          sed "s/@TAG@/$TAG/g" build/packaging/linux/repo/packages.html > _site/index.html
-          cp _site/index.html _site/packages.html
-          touch _site/.nojekyll
-      - uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6.0.0
-      - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
-        with:
-          path: _site
-      - id: deployment
-        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1
+          cp build/packaging/linux/repo/dispctrl-linux.asc build/packaging/linux/repo/dispctrl-linux.gpg repo/
+          find repo -type d -empty -delete
+          jq -n --arg product dispctrl-linux --arg title "DispCtrl for Linux" \
+            --arg version "${TAG#v}" --arg tag "$TAG" --arg repo "$GITHUB_REPOSITORY" \
+            --arg fingerprint "$FPR" --arg generated "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            '{$product, $title, $version, $tag, $repo, $fingerprint, $generated}' > repo/manifest.json
+          # Every redirect must land on a file of this release.
+          gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets[].name' | sort > assets.txt
+          missing=$(cut -f2 repo/redirects.tsv | sort | comm -23 - assets.txt)
+          [ -z "$missing" ] || { echo "::error::not on the release: $missing"; exit 1; }
+          (cd repo && tar --owner=0 --group=0 --numeric-owner --sort=name -czf ../dispctrl-linux-repo.tar.gz -- *)
+          tar -tvzf dispctrl-linux-repo.tar.gz
+      - name: Attach the repository to the release
+        run: gh release upload "$TAG" dispctrl-linux-repo.tar.gz --clobber --repo "$GITHUB_REPOSITORY"
+      - name: Ask the site to collect it
+        # Optional (a token that may dispatch to HaythmKenway/Akileswar); without
+        # it the site's own schedule collects the release within half an hour.
+        if: env.HAS_DISPATCH_TOKEN == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.PACKAGES_DISPATCH_TOKEN }}
+        run: gh api repos/HaythmKenway/Akileswar/dispatches -f event_type=packages
       - name: Summary
         run: |
           {
             echo "## Package repositories: $TAG"
             echo
-            echo "apt: $BASE/apt"
-            echo "dnf: $BASE/rpm/dispctrl-linux.repo"
+            echo "Attached dispctrl-linux-repo.tar.gz; packages.akileswar.com serves it once the Akileswar site has collected it."
+            echo
+            echo "| Package file | Release asset |"
+            echo "|---|---|"
+            awk -F'\t' '{ print "| " $1 " | " $2 " |" }' repo/redirects.tsv
+            echo
+            if [ -s signed.txt ]; then echo "Signed and replaced on the release: $(xargs -a signed.txt -n1 basename | paste -sd' ')"; fi
           } >> "$GITHUB_STEP_SUMMARY"

@@ -99,7 +99,7 @@ sudo curl -fsSL https://packages.akileswar.com/rpm/dispctrl-linux.repo -o /etc/y
 sudo dnf install dispctrl-linux
 ```
 
-openSUSE and the key's fingerprint are in [the install guide](docs/LINUX.md#from-the-apt-or-dnf-repository).
+openSUSE and the key's fingerprint are in [the install guide](docs/LINUX.md#from-the-apt-or-dnf-repository) and on [packages.akileswar.com](https://packages.akileswar.com/dispctrl-linux/), which serves the signed metadata and hands each download to the file on the [releases](https://github.com/HaythmKenway/DispCtrl-linux/releases).
 
 Install one way only: the snap, the packages and the tarball refuse to sit side by side.
 
